@@ -180,23 +180,27 @@ create_tree_structure() {
 
 # Fixed function for collecting files:
 collect_files() {
+    local temp_file=$(mktemp)
+    
     if [[ ${#TARGET_PATHS[@]} -eq 0 ]]; then
         # Original code - all files in current directory
-        find . -type f | sort
+        find . -type f | sort > "$temp_file"
     else
         # Process specific paths
         for target_path in "${TARGET_PATHS[@]}"; do
             if [[ -f "$target_path" ]]; then
                 # Single file
-                echo "$target_path"
+                echo "$target_path" >> "$temp_file"
             elif [[ -d "$target_path" ]]; then
                 # Folder recursively
-                find "$target_path" -type f | sort
+                find "$target_path" -type f | sort >> "$temp_file"
             else
                 echo "Warning: Path not found: $target_path" >&2
             fi
         done
     fi
+    
+    echo "$temp_file"
 }
 
 # Function: Processes a file
@@ -204,8 +208,16 @@ process_file() {
     local file="$1"
     local relative_path="${file#./}"
     
-    # Check file size
-    local file_size=$(stat -f%z "$file" 2>/dev/null || stat -c%s "$file" 2>/dev/null || echo 0)
+    # Check file size - Fixed for better compatibility
+    local file_size=0
+    if command -v stat >/dev/null 2>&1; then
+        if stat -f%z "$file" >/dev/null 2>&1; then
+            file_size=$(stat -f%z "$file" 2>/dev/null)
+        elif stat -c%s "$file" >/dev/null 2>&1; then
+            file_size=$(stat -c%s "$file" 2>/dev/null)
+        fi
+    fi
+    
     if [[ $file_size -gt $MAX_FILE_SIZE ]]; then
         echo "--- $relative_path BEGINNING ---"
         echo "[FILE TOO LARGE: $(($file_size / 1024))KB - SKIPPED]"
@@ -225,14 +237,16 @@ process_file() {
         return
     fi
     
-    # Check if file is binary
-    if file "$file" | grep -q "binary"; then
-        echo "--- $relative_path BEGINNING ---"
-        echo "[BINARY FILE - SKIPPED]"
-        echo ""
-        echo "--- $relative_path END ---"
-        echo ""
-        return
+    # Check if file is binary - Fixed for better compatibility
+    if command -v file >/dev/null 2>&1; then
+        if file "$file" 2>/dev/null | grep -q "binary\|executable\|data"; then
+            echo "--- $relative_path BEGINNING ---"
+            echo "[BINARY FILE - SKIPPED]"
+            echo ""
+            echo "--- $relative_path END ---"
+            echo ""
+            return
+        fi
     fi
     
     echo "--- $relative_path BEGINNING ---"
@@ -266,40 +280,48 @@ main() {
         
     } > "$OUTPUT_FILE"
     
-    # Find and process all files - Alternative approach for better compatibility
-    local temp_file_list=$(mktemp)
-    collect_files > "$temp_file_list"
+    # Find and process all files - Fixed approach
+    local temp_file_list=$(collect_files)
     
-    while read -r file; do
-        # Skip empty lines
-        [[ -z "$file" ]] && continue
+    if [[ -f "$temp_file_list" ]]; then
+        while IFS= read -r file; do
+            # Skip empty lines
+            [[ -z "$file" ]] && continue
+            
+            # Skip output file itself
+            if [[ "$file" == "./$OUTPUT_FILE" ]] || [[ "$file" == "$OUTPUT_FILE" ]]; then
+                continue
+            fi
+            
+            # Check blacklist
+            if is_blacklisted "$file"; then
+                continue
+            fi
+            
+            # Check file extension
+            if ! is_allowed_extension "$file"; then
+                continue
+            fi
+            
+            echo "Processing: $file"
+            process_file "$file" >> "$OUTPUT_FILE"
+        done < "$temp_file_list"
         
-        # Skip output file itself
-        if [[ "$file" == "./$OUTPUT_FILE" ]] || [[ "$file" == "$OUTPUT_FILE" ]]; then
-            continue
-        fi
-        
-        # Check blacklist
-        if is_blacklisted "$file"; then
-            continue
-        fi
-        
-        # Check file extension
-        if ! is_allowed_extension "$file"; then
-            continue
-        fi
-        
-        echo "Processing: $file"
-        process_file "$file" >> "$OUTPUT_FILE"
-    done < "$temp_file_list"
-    
-    # Clean up temporary file
-    rm -f "$temp_file_list"
+        # Clean up temporary file
+        rm -f "$temp_file_list"
+    else
+        echo "Error: Could not create temporary file list"
+        exit 1
+    fi
     
     echo ""
     echo "Export completed!"
     echo "Output file: $OUTPUT_FILE"
-    echo "File size: $(du -h "$OUTPUT_FILE" | cut -f1)"
+    if command -v du >/dev/null 2>&1; then
+        echo "File size: $(du -h "$OUTPUT_FILE" 2>/dev/null | cut -f1 || echo "Unknown")"
+    else
+        echo "File size: Unknown"
+    fi
 }
 
 # Help text
