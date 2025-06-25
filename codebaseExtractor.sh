@@ -180,32 +180,23 @@ create_tree_structure() {
 
 # New function for collecting files:
 collect_files() {
-    local files_to_process=()
-    
     if [[ ${#TARGET_PATHS[@]} -eq 0 ]]; then
         # Original code - all files in current directory
-        while read -r file; do
-            files_to_process+=("$file")
-        done < <(find . -type f | sort)
+        find . -type f | sort
     else
         # Process specific paths
         for target_path in "${TARGET_PATHS[@]}"; do
             if [[ -f "$target_path" ]]; then
                 # Single file
-                files_to_process+=("$target_path")
+                echo "$target_path"
             elif [[ -d "$target_path" ]]; then
                 # Folder recursively
-                while read -r file; do
-                    files_to_process+=("$file")
-                done < <(find "$target_path" -type f | sort)
+                find "$target_path" -type f | sort
             else
                 echo "Warning: Path not found: $target_path" >&2
             fi
         done
     fi
-    
-    # Return array as string (for the while loop)
-    printf '%s\n' "${files_to_process[@]}"
 }
 
 # Function: Processes a file
@@ -276,7 +267,7 @@ main() {
     } > "$OUTPUT_FILE"
     
     # Find and process all files
-collect_files | while read -r file; do
+    while read -r file; do
         # Skip output file itself
         if [[ "$file" == "./$OUTPUT_FILE" ]] || [[ "$file" == "$OUTPUT_FILE" ]]; then
             continue
@@ -294,7 +285,7 @@ collect_files | while read -r file; do
         
         echo "Processing: $file"
         process_file "$file" >> "$OUTPUT_FILE"
-    done
+    done < <(collect_files)
     
     echo ""
     echo "Export completed!"
