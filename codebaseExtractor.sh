@@ -178,7 +178,7 @@ create_tree_structure() {
     echo ""
 }
 
-# New function for collecting files:
+# Fixed function for collecting files:
 collect_files() {
     if [[ ${#TARGET_PATHS[@]} -eq 0 ]]; then
         # Original code - all files in current directory
@@ -266,8 +266,14 @@ main() {
         
     } > "$OUTPUT_FILE"
     
-    # Find and process all files
+    # Find and process all files - Alternative approach for better compatibility
+    local temp_file_list=$(mktemp)
+    collect_files > "$temp_file_list"
+    
     while read -r file; do
+        # Skip empty lines
+        [[ -z "$file" ]] && continue
+        
         # Skip output file itself
         if [[ "$file" == "./$OUTPUT_FILE" ]] || [[ "$file" == "$OUTPUT_FILE" ]]; then
             continue
@@ -285,7 +291,10 @@ main() {
         
         echo "Processing: $file"
         process_file "$file" >> "$OUTPUT_FILE"
-    done < <(collect_files)
+    done < "$temp_file_list"
+    
+    # Clean up temporary file
+    rm -f "$temp_file_list"
     
     echo ""
     echo "Export completed!"
