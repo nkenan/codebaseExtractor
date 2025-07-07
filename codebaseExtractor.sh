@@ -43,8 +43,8 @@ BLACKLIST_DIRS=(
     "uploads"
 )
 
+# FIXED: Removed *.env from blacklist and made it more specific
 BLACKLIST_FILES=(
-    "*.env"
     "*.log"
     "*.tmp"
     "*.cache"
@@ -60,6 +60,8 @@ BLACKLIST_FILES=(
     "*.swp"
     "*.swo"
     "*~"
+    "codebase_export.txt"
+    "codebaseExtractor.sh"
 )
 
 # Web server file extensions (include)
@@ -152,14 +154,15 @@ is_binary_file() {
     return $?
 }
 
-# Function: Checks if path is blacklisted
+# FIXED: Improved blacklist checking
 is_blacklisted() {
     local path="$1"
     local basename=$(basename "$path")
+    local relative_path="${path#./}"
     
     # Check folder blacklist
     for blacklist_dir in "${BLACKLIST_DIRS[@]}"; do
-        if [[ "$path" == *"/$blacklist_dir"* ]] || [[ "$basename" == "$blacklist_dir" ]]; then
+        if [[ "$path" == *"/$blacklist_dir"* ]] || [[ "$basename" == "$blacklist_dir" ]] || [[ "$relative_path" == "$blacklist_dir"/* ]]; then
             return 0
         fi
     done
@@ -168,9 +171,9 @@ is_blacklisted() {
     for pattern in "${BLACKLIST_FILES[@]}"; do
         # Handle wildcard patterns properly
         if [[ "$pattern" == *.* ]]; then
-            # Pattern like *.env
+            # Pattern like *.log
             local ext="${pattern#*.}"
-            if [[ "$basename" == .$ext ]] || [[ "$basename" == *.$ext ]]; then
+            if [[ "$basename" == *.$ext ]]; then
                 return 0
             fi
         else
@@ -184,18 +187,18 @@ is_blacklisted() {
     return 1
 }
 
-# Function: Checks if file extension is allowed
+# FIXED: Improved extension checking
 is_allowed_extension() {
     local file="$1"
+    local basename=$(basename "$file")
     local extension="${file##*.}"
     extension=$(echo "$extension" | tr '[:upper:]' '[:lower:]')
     
     # Check if file has an extension
     if [[ "$file" == "$extension" ]]; then
         # No extension - check if it's a known configuration file
-        local basename=$(basename "$file")
         case "$basename" in
-            "Dockerfile"|"Makefile"|"Rakefile"|"Gemfile"|"Procfile"|"requirements.txt"|".gitignore"|".htaccess"|"env")
+            "Dockerfile"|"Makefile"|"Rakefile"|"Gemfile"|"Procfile"|"requirements.txt"|".gitignore"|".htaccess"|".env")
                 return 0
                 ;;
             *)
@@ -204,7 +207,7 @@ is_allowed_extension() {
         esac
     fi
     
-    # Check excluded extensions
+    # Check excluded extensions first
     for ext in "${EXCLUDE_EXTENSIONS[@]}"; do
         if [[ "$extension" == "$ext" ]]; then
             return 1
@@ -221,7 +224,7 @@ is_allowed_extension() {
     return 1
 }
 
-# FIXED: Create tree structure function
+# Create tree structure function
 create_tree_structure() {
     echo "=== FOLDER STRUCTURE ==="
     echo ""
@@ -272,7 +275,7 @@ create_tree_structure() {
     echo ""
 }
 
-# FIXED: Collect files function
+# Collect files function
 collect_files() {
     local temp_file=$(mktemp)
     
