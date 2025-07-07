@@ -154,7 +154,7 @@ is_binary_file() {
     return $?
 }
 
-# FIXED: Improved blacklist checking
+# FIXED: Improved blacklist checking with better debugging
 is_blacklisted() {
     local path="$1"
     local basename=$(basename "$path")
@@ -163,6 +163,7 @@ is_blacklisted() {
     # Check folder blacklist
     for blacklist_dir in "${BLACKLIST_DIRS[@]}"; do
         if [[ "$path" == *"/$blacklist_dir"* ]] || [[ "$basename" == "$blacklist_dir" ]] || [[ "$relative_path" == "$blacklist_dir"/* ]]; then
+            [[ "$DRY_RUN" == true ]] && echo "Skipping (blacklisted dir): $path (matches: $blacklist_dir)" >&2
             return 0
         fi
     done
@@ -174,11 +175,13 @@ is_blacklisted() {
             # Pattern like *.log
             local ext="${pattern#*.}"
             if [[ "$basename" == *.$ext ]]; then
+                [[ "$DRY_RUN" == true ]] && echo "Skipping (blacklisted file pattern): $path (matches: $pattern)" >&2
                 return 0
             fi
         else
             # Exact match
             if [[ "$basename" == "$pattern" ]]; then
+                [[ "$DRY_RUN" == true ]] && echo "Skipping (blacklisted file): $path (matches: $pattern)" >&2
                 return 0
             fi
         fi
@@ -187,7 +190,7 @@ is_blacklisted() {
     return 1
 }
 
-# FIXED: Improved extension checking
+# FIXED: Improved extension checking with better debugging
 is_allowed_extension() {
     local file="$1"
     local basename=$(basename "$file")
@@ -199,9 +202,11 @@ is_allowed_extension() {
         # No extension - check if it's a known configuration file
         case "$basename" in
             "Dockerfile"|"Makefile"|"Rakefile"|"Gemfile"|"Procfile"|"requirements.txt"|".gitignore"|".htaccess"|".env")
+                [[ "$DRY_RUN" == true ]] && echo "Allowing (special file): $file" >&2
                 return 0
                 ;;
             *)
+                [[ "$DRY_RUN" == true ]] && echo "Skipping (no extension): $file" >&2
                 return 1
                 ;;
         esac
@@ -210,6 +215,7 @@ is_allowed_extension() {
     # Check excluded extensions first
     for ext in "${EXCLUDE_EXTENSIONS[@]}"; do
         if [[ "$extension" == "$ext" ]]; then
+            [[ "$DRY_RUN" == true ]] && echo "Skipping (excluded extension): $file (.$ext)" >&2
             return 1
         fi
     done
@@ -217,10 +223,12 @@ is_allowed_extension() {
     # Check included extensions
     for ext in "${INCLUDE_EXTENSIONS[@]}"; do
         if [[ "$extension" == "$ext" ]]; then
+            [[ "$DRY_RUN" == true ]] && echo "Allowing (included extension): $file (.$ext)" >&2
             return 0
         fi
     done
     
+    [[ "$DRY_RUN" == true ]] && echo "Skipping (extension not in allow list): $file (.$extension)" >&2
     return 1
 }
 
@@ -428,19 +436,15 @@ EOF
             
             # Check blacklist
             if is_blacklisted "$file"; then
-                echo "Skipping (blacklisted): $file" >&2
                 ((skipped_count++))
                 continue
             fi
             
             # Check file extension
             if ! is_allowed_extension "$file"; then
-                echo "Skipping (extension not allowed): $file" >&2
                 ((skipped_count++))
                 continue
             fi
-            
-            echo "Processing [$current_file/$total_files]: $file" >&2
             
             if [[ "$DRY_RUN" == true ]]; then
                 echo "[DRY RUN] Would process: $file"
