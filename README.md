@@ -17,35 +17,35 @@ A lightweight, dependency-free Bash script that extracts and consolidates your e
 
 ```bash
 # Download the script
-curl -O https://raw.githubusercontent.com/nkenan/codebase-extractor/main/codebase-extractor.sh
+curl -O https://raw.githubusercontent.com/nkenan/codebaseExtractor/main/codebaseExtractor.sh
 
 # Make it executable
-chmod +x codebase-extractor.sh
+chmod +x codebaseExtractor.sh
 
 # Optional: Add to PATH for global access
-sudo mv codebase-extractor.sh /usr/local/bin/codebase-extractor
+sudo mv codebaseExtractor.sh /usr/local/bin/codebaseExtractor
 ```
 
 ## Quick Start
 
 ```bash
 # Extract entire current directory
-./codebase-extractor.sh
+./codebaseExtractor.sh
 
 # Extract specific folders
-./codebase-extractor.sh src/ docs/ config/
+./codebaseExtractor.sh src/ docs/ config/
 
 # Extract with metadata and custom output file
-./codebase-extractor.sh -m -o my-project.txt src/
+./codebaseExtractor.sh -m -o my-project.txt src/
 
 # Dry run to see what would be extracted
-./codebase-extractor.sh -d
+./codebaseExtractor.sh -d
 ```
 
 ## Usage
 
 ```
-./codebase-extractor.sh [OPTIONS] [PATHS...]
+./codebaseExtractor.sh [OPTIONS] [PATHS...]
 
 OPTIONS:
   -h, --help       Show help message
@@ -60,7 +60,7 @@ PATHS:
 
 ## Configuration
 
-Create a `.codebase-extractor.conf` file in your project root to customize behavior:
+Create a `.codebaseExtractor.conf` file in your project root to customize behavior:
 
 ```bash
 # Custom output file
@@ -206,7 +206,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Support
 
 If you encounter any issues or have questions:
-1. Check the [Issues](https://github.com/nkenan/codebase-extractor/issues) page
+1. Check the [Issues](https://github.com/nkenan/codebaseExtractor/issues) page
 2. Create a new issue with detailed information
 3. Include your system info and the exact command used
 
