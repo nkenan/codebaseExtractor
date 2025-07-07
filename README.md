@@ -1,205 +1,215 @@
-# Codebase Extractor for the Shell
+# Codebase Extractor
 
-A powerful bash script that extracts and exports your entire codebase into a single text file, perfect for Large Language Model (LLM) analysis and code review. The script intelligently filters files, maintains folder structure, and creates a comprehensive overview of your project.
+A lightweight, dependency-free Bash script that extracts and consolidates your entire codebase into a single text file for analysis, documentation, or AI-powered code review.
 
 ## Features
 
-- **Smart File Filtering**: Automatically excludes binary files, build artifacts, and dependency folders
-- **Configurable Output**: Customizable blacklists and file extension filters
-- **Folder Structure Visualization**: Creates a clean tree view of your project structure
-- **Selective Export**: Export entire directories or specific files/folders
-- **Size Management**: Skips files larger than 1MB to prevent bloated outputs
-- **Binary Detection**: Automatically detects and skips binary files
-- **Web Development Focus**: Optimized for web server codebases with relevant file extensions
+- **Zero Dependencies**: Pure Bash script that works on any Unix-like system
+- **Smart Filtering**: Automatically excludes common build artifacts, dependencies, and binary files
+- **Flexible Target Selection**: Extract entire directories or specific files/folders
+- **Size Protection**: Configurable file size limits to prevent memory issues
+- **Metadata Support**: Optional file metadata inclusion (size, permissions, modification time)
+- **Dry Run Mode**: Preview what would be extracted without creating files
+- **Cross-Platform**: Works on Linux, macOS, and Windows (with WSL/Git Bash)
+- **Highly Configurable**: Customizable blacklists and file type filters
 
 ## Installation
 
-1. Download the script:
-   ```bash
-   curl -O https://raw.githubusercontent.com/nkenan/codebaseExtractor/main/codebaseExtractor.sh
-   ```
+```bash
+# Download the script
+curl -O https://raw.githubusercontent.com/nkenan/codebase-extractor/main/codebase-extractor.sh
 
-2. Make it executable:
-   ```bash
-   chmod +x codebaseExtractor.sh
-   ```
+# Make it executable
+chmod +x codebase-extractor.sh
 
-3. Optionally, move to your PATH for global access:
-   ```bash
-   sudo mv codebaseExtractor.sh /usr/local/bin/codebaseExtractor
-   ```
+# Optional: Add to PATH for global access
+sudo mv codebase-extractor.sh /usr/local/bin/codebase-extractor
+```
+
+## Quick Start
+
+```bash
+# Extract entire current directory
+./codebase-extractor.sh
+
+# Extract specific folders
+./codebase-extractor.sh src/ docs/ config/
+
+# Extract with metadata and custom output file
+./codebase-extractor.sh -m -o my-project.txt src/
+
+# Dry run to see what would be extracted
+./codebase-extractor.sh -d
+```
 
 ## Usage
 
-### Basic Usage
-
-Export entire current directory:
-```bash
-./codebaseExtractor.sh
 ```
+./codebase-extractor.sh [OPTIONS] [PATHS...]
 
-### Advanced Usage
+OPTIONS:
+  -h, --help       Show help message
+  -o, --output     Output file (default: codebase_export.txt)
+  -d, --dry-run    Preview extraction without creating file
+  -m, --metadata   Include file metadata (size, permissions, dates)
 
-```bash
-# Custom output file
-./codebaseExtractor.sh -o my_project.txt
-
-# Export specific directories
-./codebaseExtractor.sh src/ docs/ config/
-
-# Export specific files
-./codebaseExtractor.sh index.php config.json README.md
-
-# Mixed export (folders and files)
-./codebaseExtractor.sh src/ README.md LICENSE
+PATHS:
+  Without paths: Exports all files in the current directory
+  With paths:    Exports only the specified files/folders
 ```
-
-### Command Line Options
-
-| Option | Description |
-|--------|-------------|
-| `-h`, `--help` | Show help message |
-| `-o`, `--output` | Specify output filename (default: `codebase_export.txt`) |
 
 ## Configuration
 
-### Blacklisted Directories
+Create a `.codebase-extractor.conf` file in your project root to customize behavior:
 
-The script automatically excludes common build and dependency directories:
+```bash
+# Custom output file
+OUTPUT_FILE="my-custom-export.txt"
 
-- `node_modules`, `vendor`
-- `.git`, `.svn`, `.hg`
-- `dist`, `build`, `target`
-- `__pycache__`, `.pytest_cache`
-- `.vscode`, `.idea`
-- `tmp`, `temp`, `cache`, `logs`
-- `.next`, `.nuxt`
-- `coverage`, `.nyc_output`
-- `public/uploads`, `storage`
-- `var/cache`, `var/log`
+# Increase file size limit to 2MB
+MAX_FILE_SIZE=2097152
 
-### Included File Extensions
+# Add custom directories to blacklist
+BLACKLIST_DIRS+=("my-custom-dir" "temp-files")
 
-**Web Development:**
-- `php`, `html`, `htm`, `css`, `scss`, `sass`, `less`
-- `js`, `jsx`, `ts`, `tsx`, `vue`, `svelte`
+# Add custom file extensions to include
+INCLUDE_EXTENSIONS+=("custom" "special")
 
-**Programming Languages:**
-- `py`, `rb`, `java`, `c`, `cpp`, `cs`, `go`, `rs`
+# Add custom file patterns to exclude
+BLACKLIST_FILES+=("*.backup" "*.orig")
+```
 
-**Configuration & Data:**
-- `json`, `xml`, `yaml`, `yml`, `toml`, `ini`, `conf`
-- `sql`, `md`, `txt`, `.htaccess`, `.gitignore`
+## What Gets Extracted
 
-**Scripts & Templates:**
-- `dockerfile`, `makefile`, `sh`, `bat`, `ps1`
-- `twig`, `blade`, `smarty`, `handlebars`, `mustache`
-- `asp`, `aspx`, `jsp`, `erb`, `ejs`, `pug`, `jade`
+### Included File Types
+- **Web**: `php`, `html`, `css`, `js`, `jsx`, `ts`, `tsx`, `vue`, `svelte`
+- **Backend**: `py`, `rb`, `java`, `c`, `cpp`, `cs`, `go`, `rs`
+- **Config**: `json`, `xml`, `yaml`, `yml`, `toml`, `ini`, `conf`
+- **Documentation**: `md`, `txt`, `rst`
+- **Templates**: `twig`, `blade`, `handlebars`, `mustache`, `ejs`
+- **Database**: `sql`, `graphql`, `gql`
+- **DevOps**: `dockerfile`, `makefile`, `tf`, `.gitignore`, `.htaccess`
 
-### Excluded File Extensions
-
-Media and binary files are automatically excluded:
-- Images: `jpg`, `jpeg`, `png`, `gif`, `bmp`, `svg`, `webp`, `ico`
-- Videos: `mp4`, `avi`, `mov`, `wmv`, `flv`, `webm`, `mkv`
-- Audio: `mp3`, `wav`, `ogg`, `flac`, `aac`, `wma`
-- Documents: `pdf`, `doc`, `docx`, `xls`, `xlsx`, `ppt`, `pptx`
-- Archives: `zip`, `rar`, `tar`, `gz`, `7z`, `bz2`
-- Executables: `exe`, `dll`, `so`, `dylib`, `bin`
-- Fonts: `ttf`, `otf`, `woff`, `woff2`, `eot`
+### Automatically Excluded
+- **Dependencies**: `node_modules`, `vendor`, `__pycache__`
+- **Build artifacts**: `dist`, `build`, `target`, `.next`
+- **Version control**: `.git`, `.svn`, `.hg`
+- **IDE files**: `.vscode`, `.idea`
+- **Media files**: Images, videos, audio files
+- **Archives**: `zip`, `tar`, `gz`, `rar`
+- **Binaries**: `exe`, `dll`, `so`, `dylib`
+- **Lock files**: `package-lock.json`, `yarn.lock`, `composer.lock`
 
 ## Output Format
 
-The generated file contains:
-
-1. **Header Section**: Export timestamp and directory information
-2. **Folder Structure**: Tree-like visualization of your project structure
-3. **File Contents**: Each file with clear delimiters and indented content
-
-### Example Output Structure
+The generated file includes:
+1. **Header**: Timestamp, directory info, options used
+2. **Folder Structure**: Tree view of directories
+3. **File Contents**: Each file with clear delimiters
 
 ```
 CODEBASE EXPORT
-Created on: Thu Jun 19 10:30:45 GMT 2025
-Directory: /path/to/your/project
-
-===============================================
+Created on: 2025-01-15 10:30:00
+Directory: /path/to/project
 
 === FOLDER STRUCTURE ===
-
 src/
   components/
   utils/
-  styles/
-docs/
 config/
 
 === FILES ===
 
---- src/index.js BEGINNING ---
-	// Your indented file content here
-	console.log('Hello World');
---- src/index.js END ---
-
---- src/components/App.jsx BEGINNING ---
-	// Component code here
---- src/components/App.jsx END ---
+--- src/main.js BEGINNING ---
+[METADATA: Size: 2KB | Modified: 2025-01-15 09:15:00 | Permissions: -rw-r--r--]
+    const app = {
+        init() {
+            console.log('App initialized');
+        }
+    };
+--- src/main.js END ---
 ```
 
 ## Use Cases
 
-- **LLM Code Analysis**: Feed your entire codebase to ChatGPT, Claude, or other LLMs
-- **Code Reviews**: Create comprehensive code snapshots for review
-- **Documentation**: Generate project overviews and architecture documentation
-- **Backup**: Create human-readable backups of your codebase
-- **Migration**: Prepare codebases for migration or refactoring projects
+### 🤖 AI Code Analysis
+- **Code Review**: Feed entire codebase to AI tools like ChatGPT, Claude, or Copilot
+- **Documentation Generation**: Automatically generate project documentation
+- **Bug Detection**: Let AI scan for potential issues across your entire project
+- **Refactoring Suggestions**: Get AI-powered recommendations for code improvements
 
-## File Size Management
+### 📋 Project Documentation
+- **Onboarding**: Create comprehensive code snapshots for new team members
+- **Code Audits**: Prepare consolidated codebases for security or quality audits
+- **Architecture Analysis**: Analyze project structure and dependencies
+- **Legacy Code Documentation**: Document old codebases before migration
 
-- Files larger than 1MB are automatically skipped
-- Binary files are detected and excluded
-- Unreadable files are gracefully handled
-- The script provides clear feedback about skipped files
+### 🔄 Migration & Backup
+- **Platform Migration**: Easily move code between different hosting environments
+- **Code Backup**: Create portable backups of your entire project
+- **Version Snapshots**: Capture complete project state at specific points
+- **Deployment Preparation**: Bundle code for deployment to restricted environments
 
-## Compatibility
+### 🧪 Testing & Analysis
+- **Static Analysis**: Prepare code for static analysis tools
+- **Code Metrics**: Generate input for code complexity and quality tools
+- **License Scanning**: Scan entire codebase for license compliance
+- **Security Analysis**: Feed to security scanning tools
 
-- **macOS**: Full support (uses `stat -f%z`)
-- **Linux**: Full support (uses `stat -c%s`)
-- **Windows**: Works with Git Bash, WSL, or Cygwin
+### 👥 Collaboration
+- **Code Sharing**: Share entire projects without Git repositories
+- **Remote Consultation**: Send complete codebases to consultants or freelancers
+- **Code Training**: Create training materials from real projects
+- **Interview Preparation**: Prepare code samples for technical interviews
 
-## Customization
+## Perfect for Restricted Environments
 
-You can easily modify the script to suit your needs:
+This tool was specifically designed for **restricted managed web hosting servers** where you have limited access and capabilities:
 
-1. **Add file extensions**: Edit the `INCLUDE_EXTENSIONS` array
-2. **Exclude directories**: Add to the `BLACKLIST_DIRS` array
-3. **Change file size limit**: Modify the `MAX_FILE_SIZE` variable
-4. **Custom file patterns**: Edit the `BLACKLIST_FILES` array
+### Why This Tool Exists
+Many developers work on shared hosting platforms, corporate servers, or managed hosting environments where:
+- **No Package Managers**: Can't install npm, pip, composer, or other dependency managers
+- **Limited Shell Access**: Basic SSH with restricted commands
+- **No Git Access**: Can't clone repositories or use version control
+- **Firewall Restrictions**: Limited internet access for downloading tools
+- **No Admin Rights**: Can't install system packages or dependencies
+
+### How It Solves These Problems
+- **Zero Dependencies**: Only requires Bash (available on virtually all Unix systems)
+- **Single File**: Just one script file to upload via FTP/SFTP
+- **No Installation**: Works immediately without setup
+- **Portable**: Runs anywhere with basic shell access
+- **Offline Capable**: Doesn't require internet connection after upload
+
+### Real-World Scenarios
+- **Shared Hosting**: Working on cPanel, DirectAdmin, or similar platforms
+- **Corporate Servers**: Analyzing code on locked-down enterprise systems
+- **Legacy Systems**: Extracting code from old servers with limited tools
+- **Embedded Systems**: Working on IoT devices or embedded Linux systems
+- **Restricted VPS**: Servers with minimal installed packages
+
+This makes the tool invaluable for developers who need to work with codebases in constrained environments where modern development tools aren't available.
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit pull requests, report bugs, or suggest new features.
+Contributions are welcome! Please feel free to submit pull requests or open issues for:
+- Additional file type support
+- Performance improvements
+- New configuration options
+- Bug fixes
+- Documentation improvements
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## Examples
+## Support
 
-### Export a React Project
-```bash
-./codebaseExtractor.sh src/ public/ package.json README.md
-```
-
-### Export PHP Application
-```bash
-./codebaseExtractor.sh app/ config/ public/ composer.json
-```
-
-### Export with Custom Output
-```bash
-./codebaseExtractor.sh -o project_analysis.txt src/ docs/
-```
+If you encounter any issues or have questions:
+1. Check the [Issues](https://github.com/nkenan/codebase-extractor/issues) page
+2. Create a new issue with detailed information
+3. Include your system info and the exact command used
 
 ---
 
-**Perfect for developers who want to leverage AI for code analysis, documentation, and project understanding!**
+**Happy Coding!** 🚀
