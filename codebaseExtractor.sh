@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Codebase Extractor Script
+# Codebase Extractor Script - FIXED VERSION
 # Creates a TXT file with the entire content of a codebase for LLM analysis
 
 # Configuration
@@ -40,6 +40,7 @@ BLACKLIST_DIRS=(
     "storage"
     "var/cache"
     "var/log"
+    "uploads"
 )
 
 BLACKLIST_FILES=(
@@ -163,10 +164,20 @@ is_blacklisted() {
         fi
     done
     
-    # Check file blacklist (wildcards)
+    # Check file blacklist (wildcards) - FIXED
     for pattern in "${BLACKLIST_FILES[@]}"; do
-        if [[ "$basename" == $pattern ]]; then
-            return 0
+        # Handle wildcard patterns properly
+        if [[ "$pattern" == *.* ]]; then
+            # Pattern like *.env
+            local ext="${pattern#*.}"
+            if [[ "$basename" == .$ext ]] || [[ "$basename" == *.$ext ]]; then
+                return 0
+            fi
+        else
+            # Exact match
+            if [[ "$basename" == "$pattern" ]]; then
+                return 0
+            fi
         fi
     done
     
@@ -210,21 +221,31 @@ is_allowed_extension() {
     return 1
 }
 
-# Extended create_tree_structure function:
+# FIXED: Create tree structure function
 create_tree_structure() {
     echo "=== FOLDER STRUCTURE ==="
     echo ""
     
     if [[ ${#TARGET_PATHS[@]} -eq 0 ]]; then
-        # Original code for entire directory
-        find . -type d | while read -r dir; do
+        # Show current directory structure
+        echo "Current directory: $(pwd)"
+        echo ""
+        
+        # Find all directories (excluding blacklisted ones)
+        find . -type d -not -path './.*' 2>/dev/null | sort | while read -r dir; do
             if ! is_blacklisted "$dir"; then
-                depth=$(echo "$dir" | grep -o "/" | wc -l)
-                indent=""
-                for ((i=0; i<depth; i++)); do
+                # Calculate depth for indentation
+                local depth=$(echo "$dir" | sed 's|[^/]||g' | wc -c)
+                local indent=""
+                for ((i=1; i<depth; i++)); do
                     indent+="  "
                 done
-                echo "${indent}$(basename "$dir")/"
+                local dirname=$(basename "$dir")
+                if [[ "$dir" == "." ]]; then
+                    echo "."
+                else
+                    echo "${indent}${dirname}/"
+                fi
             fi
         done
     else
@@ -232,7 +253,7 @@ create_tree_structure() {
         for target_path in "${TARGET_PATHS[@]}"; do
             if [[ -d "$target_path" ]]; then
                 echo "Folder: $target_path/"
-                find "$target_path" -type d | while read -r dir; do
+                find "$target_path" -type d 2>/dev/null | while read -r dir; do
                     if ! is_blacklisted "$dir"; then
                         relative_dir="${dir#$target_path/}"
                         if [[ "$relative_dir" != "$dir" ]]; then
@@ -251,33 +272,20 @@ create_tree_structure() {
     echo ""
 }
 
-# Fixed function for collecting files with duplicate detection:
+# FIXED: Collect files function
 collect_files() {
     local temp_file=$(mktemp)
     
     if [[ ${#TARGET_PATHS[@]} -eq 0 ]]; then
-        find . -type f | sort > "$temp_file"
+        # Find all files in current directory
+        find . -type f 2>/dev/null | sort > "$temp_file"
     else
-        # Use associative array to track processed files
-        declare -A processed_files
-        
+        # Handle specific paths
         for target_path in "${TARGET_PATHS[@]}"; do
             if [[ -f "$target_path" ]]; then
-                # Single file
-                real_file=$(realpath "$target_path" 2>/dev/null || echo "$target_path")
-                if [[ -z "${processed_files[$real_file]:-}" ]]; then
-                    processed_files[$real_file]=1
-                    echo "$target_path" >> "$temp_file"
-                fi
+                echo "$target_path" >> "$temp_file"
             elif [[ -d "$target_path" ]]; then
-                # Folder recursively
-                find "$target_path" -type f | while read -r file; do
-                    real_file=$(realpath "$file" 2>/dev/null || echo "$file")
-                    if [[ -z "${processed_files[$real_file]:-}" ]]; then
-                        processed_files[$real_file]=1
-                        echo "$file"
-                    fi
-                done >> "$temp_file"
+                find "$target_path" -type f 2>/dev/null >> "$temp_file"
             else
                 echo "Warning: Path not found: $target_path" >&2
             fi
@@ -292,6 +300,8 @@ collect_files() {
 process_file() {
     local file="$1"
     local relative_path="${file#./}"
+    
+    echo "Processing: $relative_path" >&2
     
     # Check file size
     local file_size=$(get_file_size "$file")
@@ -344,10 +354,8 @@ process_file() {
         echo "[JUPYTER NOTEBOOK - Showing JSON structure]"
     fi
     
-    # Stream file with line-by-line processing
-    while IFS= read -r line; do
-        echo -e "\t$line"
-    done < "$file"
+    # Stream file content
+    cat "$file" 2>/dev/null || echo "[ERROR: Could not read file content]"
     echo ""
     echo "--- $relative_path END ---"
     echo ""
@@ -358,11 +366,11 @@ main() {
     # Load configuration if exists
     load_config
     
-    echo "Codebase Extractor started..."
-    echo "Output file: $OUTPUT_FILE"
-    echo "Dry run: $DRY_RUN"
-    echo "Include metadata: $INCLUDE_METADATA"
-    echo ""
+    echo "Codebase Extractor started..." >&2
+    echo "Output file: $OUTPUT_FILE" >&2
+    echo "Dry run: $DRY_RUN" >&2
+    echo "Include metadata: $INCLUDE_METADATA" >&2
+    echo "" >&2
     
     if [[ "$DRY_RUN" == false ]]; then
         # Delete old output file
@@ -392,6 +400,7 @@ EOF
     fi
     
     # Find and process all files
+    echo "Collecting files..." >&2
     local temp_file_list=$(collect_files)
     
     if [[ -f "$temp_file_list" ]]; then
@@ -400,6 +409,8 @@ EOF
         local current_file=0
         local processed_count=0
         local skipped_count=0
+        
+        echo "Found $total_files files to check" >&2
         
         while IFS= read -r file; do
             # Skip empty lines
@@ -410,20 +421,23 @@ EOF
                 continue
             fi
             
+            ((current_file++))
+            
             # Check blacklist
             if is_blacklisted "$file"; then
+                echo "Skipping (blacklisted): $file" >&2
                 ((skipped_count++))
                 continue
             fi
             
             # Check file extension
             if ! is_allowed_extension "$file"; then
+                echo "Skipping (extension not allowed): $file" >&2
                 ((skipped_count++))
                 continue
             fi
             
-            ((current_file++))
-            echo "Processing [$current_file/$total_files]: $file"
+            echo "Processing [$current_file/$total_files]: $file" >&2
             
             if [[ "$DRY_RUN" == true ]]; then
                 echo "[DRY RUN] Would process: $file"
@@ -440,28 +454,28 @@ EOF
         # Clean up temporary file
         rm -f "$temp_file_list"
         
-        echo ""
-        echo "Export completed!"
-        echo "Files processed: $processed_count"
-        echo "Files skipped: $skipped_count"
+        echo "" >&2
+        echo "Export completed!" >&2
+        echo "Files processed: $processed_count" >&2
+        echo "Files skipped: $skipped_count" >&2
         
         if [[ "$DRY_RUN" == false ]]; then
-            echo "Output file: $OUTPUT_FILE"
+            echo "Output file: $OUTPUT_FILE" >&2
             if command -v du >/dev/null 2>&1; then
-                echo "File size: $(du -h "$OUTPUT_FILE" 2>/dev/null | cut -f1 || echo "Unknown")"
+                echo "File size: $(du -h "$OUTPUT_FILE" 2>/dev/null | cut -f1 || echo "Unknown")" >&2
             else
-                echo "File size: Unknown"
+                echo "File size: Unknown" >&2
             fi
         fi
     else
-        echo "Error: Could not create temporary file list"
+        echo "Error: Could not create temporary file list" >&2
         exit 1
     fi
 }
 
 # Help text
 show_help() {
-    echo "Codebase Extractor Script"
+    echo "Codebase Extractor Script - Fixed Version"
     echo ""
     echo "USAGE:"
     echo "  $0 [OPTIONS] [PATHS...]"
@@ -477,19 +491,11 @@ show_help() {
     echo "  With paths:    Exports only the specified files/folders"
     echo "                 Folders are processed recursively"
     echo ""
-    echo "CONFIGURATION:"
-    echo "  Create a .codebase-extractor.conf file to override defaults:"
-    echo "    OUTPUT_FILE=\"custom_output.txt\""
-    echo "    MAX_FILE_SIZE=2097152  # 2MB"
-    echo "    BLACKLIST_DIRS+=(\"custom_dir\")"
-    echo "    INCLUDE_EXTENSIONS+=(\"custom_ext\")"
-    echo ""
     echo "EXAMPLES:"
     echo "  $0                           # Exports entire directory"
     echo "  $0 -o code.txt src/ docs/    # Exports src/ and docs/ folders"
     echo "  $0 file.php config.json      # Exports only these files"
-    echo "  $0 -d src/                   # Dry run on src/ folder"
-    echo "  $0 -m src/ README.md         # Include metadata for files"
+    echo "  $0 -d                        # Dry run to see what would be processed"
     echo ""
 }
 
